@@ -70,28 +70,25 @@
   </ol>
 
   <h2>2. Install and Configure Rclone</h2>
-  <p>Rclone handles cloud syncing:</p>
   <pre><code>sudo apt update
 sudo apt install rclone -y
 rclone config</code></pre>
   <p>Follow prompts to set up your cloud service. Use <strong>Ctrl+C</strong> to exit when done.</p>
 
   <h2>3. Create Directories</h2>
-  <p>Connect to your Pi (SSH or monitor) and create the folders:</p>
   <pre><code>mkdir -p ~/autocopy/devices
 mkdir -p ~/autocopy/logs</code></pre>
 
   <h2>4. Worker Script</h2>
-  <p>This script handles mounting, copying, and uploading automatically.</p>
   <details>
-    <summary>Show Worker Script</summary>
+    <summary>Create/Edit <code>import_worker.sh</code></summary>
+    <p>Run:</p>
+    <pre><code>nano ~/autocopy/import_worker.sh</code></pre>
+    <p>Paste this entire worker script:</p>
     <pre><code>
 #!/bin/bash
 # import_worker.sh
-# Run as user pi. Mounts partitions for a device, copies files, uploads to OneDrive, unmounts.
-
 set -eu
-
 BASE_DIR="$HOME/autocopy"
 DEVICES_DIR="$BASE_DIR/devices"
 LOG_DIR="$BASE_DIR/logs"
@@ -194,41 +191,41 @@ fi
 echo "Import complete for $SANITIZED_LABEL at $(date)"
 echo "Log file: $LOGFILE"
     </code></pre>
+    <p>Then make it executable:</p>
+    <pre><code>chmod +x ~/autocopy/import_worker.sh</code></pre>
   </details>
 
   <h2>5. Wrapper Script</h2>
-  <p>This script is triggered by udev and runs the worker as the Pi user.</p>
   <details>
-    <summary>Show Wrapper Script</summary>
+    <summary>Create/Edit <code>auto_import_wrapper.sh</code></summary>
+    <pre><code>sudo nano /usr/local/bin/auto_import_wrapper.sh</code></pre>
+    <p>Paste this content:</p>
     <pre><code>
 #!/bin/bash
-# wrapper called by udev; runs worker as user pi
 DEVICE_KERNEL="$1"
 if [[ -z "$DEVICE_KERNEL" ]]; then
   exit 0
 fi
-
-# Delay slightly to let kernel settle & partitions appear
 sleep 1
-
-# Run worker as pi (no password)
 sudo -u pi /home/pi/autocopy/import_worker.sh "$DEVICE_KERNEL" &
     </code></pre>
+    <p>Set permissions:</p>
+    <pre><code>sudo chmod 755 /usr/local/bin/auto_import_wrapper.sh
+sudo chown root:root /usr/local/bin/auto_import_wrapper.sh</code></pre>
   </details>
 
-  <h2>6. Install the Udev Rule</h2>
-  <pre><code>sudo nano /etc/udev/rules.d/99-autocopy.rules</code></pre>
-  <p>Paste the following:</p>
-  <pre><code>
-# Trigger for any new block device
-KERNEL=="sd[b-z]*", SUBSYSTEM=="block", ACTION=="add", RUN+="/usr/local/bin/auto_import_wrapper.sh %k"
-  </code></pre>
-  <p>Reload udev rules:</p>
-  <pre><code>sudo udevadm control --reload-rules
+  <h2>6. Udev Rule</h2>
+  <details>
+    <summary>Create/Edit <code>99-autocopy.rules</code></summary>
+    <pre><code>sudo nano /etc/udev/rules.d/99-autocopy.rules</code></pre>
+    <p>Paste this:</p>
+    <pre><code>KERNEL=="sd[b-z]*", SUBSYSTEM=="block", ACTION=="add", RUN+="/usr/local/bin/auto_import_wrapper.sh %k"</code></pre>
+    <p>Reload udev rules:</p>
+    <pre><code>sudo udevadm control --reload-rules
 sudo udevadm trigger</code></pre>
+  </details>
 
   <h2>7. Test the Setup</h2>
-  <p>Unplug any drives, plug in your test drive, then monitor logs:</p>
   <pre><code>tail -F ~/autocopy/logs/*.log</code></pre>
 
   <h2>8. Tips & Troubleshooting</h2>
