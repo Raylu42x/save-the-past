@@ -2,7 +2,9 @@ name: Deploy MkDocs
 on:
   push:
     branches:
-      - main
+      - main        # triggers on pushes to main branch
+  workflow_dispatch:  # allows manual runs from GitHub UI
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -19,3 +21,4 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./site
+          force_orphan: true
