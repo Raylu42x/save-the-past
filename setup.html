@@ -1,1 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prototype Setup Guide</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      max-width: 900px;
+      margin: auto;
+      padding: 20px;
+      background: #f4f4f4;
+    }
+    h1, h2, h3 {
+      color: #333;
+    }
+    pre {
+      background: #eee;
+      padding: 10px;
+      border-radius: 5px;
+      overflow-x: auto;
+    }
+    a {
+      color: #1a73e8;
+    }
+    code {
+      background: #ddd;
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+    .note {
+      background: #fffae6;
+      border-left: 4px solid #ffcc00;
+      padding: 10px;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>How to Setup Our Prototype</h1>
+  <p>This guide walks you through setting up a Raspberry Pi Zero 2 W to automatically import and upload files from external drives to OneDrive. You’ll need:</p>
+  <ul>
+    <li>Raspberry Pi Zero 2 W</li>
+    <li>Computer for setup</li>
+    <li>MicroSD card (8GB+ recommended)</li>
+    <li>External drives to test</li>
+  </ul>
 
+  <div class="note">
+    <strong>Note:</strong> This guide will be updated for troubleshooting and additional tips as we improve the process.
+  </div>
+
+  <h2>1. Flash an SD Card with Raspberry Pi OS</h2>
+  <ol>
+    <li>Download the <a href="https://www.raspberrypi.com/software/" target="_blank">Raspberry Pi Imager</a>.</li>
+    <li>Open it, insert your SD card, and flash <strong>Raspberry Pi OS 64-bit Lite</strong>.</li>
+    <li>Enable <strong>SSH</strong> and configure <strong>Wi-Fi</strong> during setup.</li>
+  </ol>
+
+  <h2>2. Install and Configure Rclone</h2>
+  <p>Rclone handles cloud syncing:</p>
+  <pre><code>sudo apt update
+sudo apt install rclone -y
+rclone config</code></pre>
+  <p>Follow prompts to set up your cloud service. Use <strong>Ctrl+C</strong> to exit when done.</p>
+
+  <h2>3. Create Directories</h2>
+  <p>Connect to your Pi (SSH or monitor) and create the folders:</p>
+  <pre><code>mkdir -p ~/autocopy/devices
+mkdir -p ~/autocopy/logs</code></pre>
+
+  <h2>4. Create the Worker Script</h2>
+  <p>This script handles mounting, copying, and uploading automatically.</p>
+  <pre><code>nano ~/autocopy/import_worker.sh</code></pre>
+  <p>Paste the worker script inside. After saving, make it executable:</p>
+  <pre><code>chmod +x ~/autocopy/import_worker.sh</code></pre>
+
+  <h2>5. Create the Udev Wrapper Script</h2>
+  <pre><code>sudo nano /usr/local/bin/auto_import_wrapper.sh</code></pre>
+  <p>Paste the wrapper script and then run:</p>
+  <pre><code>sudo chmod 755 /usr/local/bin/auto_import_wrapper.sh
+sudo chown root:root /usr/local/bin/auto_import_wrapper.sh</code></pre>
+
+  <h2>6. Install the Udev Rule</h2>
+  <pre><code>sudo nano /etc/udev/rules.d/99-autocopy.rules</code></pre>
+  <p>Paste the following:</p>
+  <pre><code># Trigger for any new block device
+KERNEL=="sd[b-z]*", SUBSYSTEM=="block", ACTION=="add", RUN+="/usr/local/bin/auto_import_wrapper.sh %k"</code></pre>
+  <p>Reload udev rules:</p>
+  <pre><code>sudo udevadm control --reload-rules
+sudo udevadm trigger</code></pre>
+
+  <h2>7. Test the Setup</h2>
+  <p>Unplug any drives, plug in your test drive, then monitor logs:</p>
+  <pre><code>tail -F ~/autocopy/logs/*.log</code></pre>
+
+  <h2>8. Tips & Troubleshooting</h2>
+  <ul>
+    <li>Make sure the Pi user has sudo permissions without password for scripts that require root.</li>
+    <li>Check SD card health if Pi fails to boot.</li>
+    <li>Use <code>lsblk</code> to verify that devices and partitions are recognized.</li>
+    <li>If rclone fails, try <code>rclone copy --progress</code> manually to debug.</li>
+    <li>Keep scripts under <code>~/autocopy</code> for easy maintenance.</li>
+  </ul>
+
+  <h2>9. Optional Enhancements</h2>
+  <ul>
+    <li>Add email notifications or dashboard alerts on successful uploads.</li>
+    <li>Enable logging rotation to prevent the logs folder from growing too large.</li>
+    <li>Set up a cron job to automatically check for updates and patch scripts.</li>
+    <li>Consider adding retry logic for network failures in the worker script.</li>
+  </ul>
+</body>
+</html>
